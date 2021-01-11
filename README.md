@@ -34,21 +34,45 @@ git clone https://github.com/LeyiChi/SSMTL.git
 2. put the extracted data into ./data file directory with the file format .R for R and .csv for python.
 3. run python 000-data_process.py to transform categorical variables to one-hot encoded variables.
 
-### 5. training
-1. coarse-scaled DenseASPP model training:
+### training and evaluation for survival analysis with CRs
+Go to the survival-analysis-with-CRs directory using 
 ```
-python train_pancreas_c2f200_coarse.py
+cd survival-analysis-with-CRs/
 ```
-2. fine-scaled DSD-ASPP-Net model training:
+
+1. Fine-Gray model:
 ```
-python train_pancreas_c2f200_saliency.py
+Rscript ./001-model-fg.R
 ```
-### 6. testing
-1. coarse-scaled model testing:
+2. Random survival forest:
 ```
-python test_organ_coarse_batch.py
+Rscript ./002-rsf.R
 ```
-2. fine-scaled model testing:
+3. Simple MLP model:
 ```
-python test_organ_fine_batch.py
-``` 
+python 003-simpleMLP.py
+```
+4. DeepHit model:
+```
+python 004-deephit.py
+```
+5. SSMTL model:
+```
+python 005-ssmtl.py
+```
+6. model performance compare:
+```
+Rscript ./006-model-compare.R
+```
+7. variable importance for SSMTL:
+```
+python 007-ssmtl-vimp.py
+Rscript ./008-vimp.R
+```
+8. nonlinear effects:
+```
+python 009-ssmtlr-nonlinear.py
+Rscript ./010-nonlinear-plot.R
+```
+
+引用和错误

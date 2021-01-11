@@ -1,5 +1,5 @@
 
-setwd("F:\\007-research\\002-papers\\[2019-01 SCI NO 3 深度生存分析]")
+setwd("~/SSMTL")
 
 rm(list=ls())
 
@@ -18,25 +18,18 @@ library(pec)
 library(gbm)
 library(ranger)
 library(boot)
-source("./revision-03-csd-crc/000-get_AUC.R")
 options(scipen=200)
 options(rf.cores = -1)
 
 
 # ******************************************** seer *************************************************
 #####################################################################################################
-########################################### 载入数据 ################################################
+########################################### load data ###############################################
 #####################################################################################################
-# traindata <- read.csv("F:\\Paper\\NN-Survival\\DL4Surv\\revision-02\\data\\data_imputed_train.csv")
-# testdata <- read.csv("F:\\Paper\\NN-Survival\\DL4Surv\\revision-02\\data\\data_imputed_test.csv")
-
-load(file = "./revision-03-csd-crc/data/007-data_crs_train.R")
-load(file = "./revision-03-csd-crc/data/007-data_crs_test.R")
+load(file = "../data/007-data_crs_train.R")
+load(file = "../data/007-data_crs_test.R")
 
 names(train)
-# [1] "race"          "sex"           "age"           "marital"       "site"          "grade"         "ajcc7t"        "ajcc7n"        "ajcc7m"       
-# [10] "positivelymph" "time"          "os"            "hist"          "radiation"     "surgery"       "crstatus"     
-
 
 folds <- createFolds(train$crstatus, k = 5)
 gbm_grid <- expand.grid(nsplit = c(5, 10, 15, 20, 25), 
@@ -75,10 +68,6 @@ gbm.cv <- function(data, nsplit, ntree, mtry, nodesize, IBS = FALSE){
                    data = Xvalid, verbose = F, maxtime = 200)
       ibss <- c(ibss, list(ibs.v))
     }
-    # # Write report
-    # cat("Model :: ", "max.depth = ", max.depth, "eta = ", eta, "nrounds = ", nrounds,
-    #     "subsample = ", subsample, "colsample_bytree = ", colsample_bytree,
-    #     ":: auc = ", auc, ":: eci = ", eci, "\n")
   }
   # Return the cindex vector
   if(IBS){
@@ -92,7 +81,6 @@ gbm.cv <- function(data, nsplit, ntree, mtry, nodesize, IBS = FALSE){
 # Loop over the rf_grid to screen best hyperparameters
 gbm.cv.results <- data.frame(gbm_grid)
 gbm.cv.results$auc <- 0
-# gbm.cv.results$eci = 10000
 
 
 for(ind in 1:dim(gbm_grid)[1]){
@@ -106,17 +94,16 @@ for(ind in 1:dim(gbm_grid)[1]){
                      nodesize = nodesize, IBS = FALSE)
   # Save the mean to rf.cv.results
   gbm.cv.results[ind, 5] <- mean(gbm.rets[[1]])
-  # gbm.cv.results[ind, 7] <- mean(gbm.rets[[2]])
   
   # Write report
   cat("Model :: ", ind, "/", dim(gbm_grid)[1], "nsplit = ", nsplit, "ntree = ", ntree, "mtry = ", mtry,
       "nodesize = ", nodesize,
       ":: auc = ", gbm.cv.results[ind, 5], "\n")
-  save(gbm.cv.results, file="./revision-03-csd-crc/data/gbm.cv.results.once.Rdata")
+  save(gbm.cv.results, file="../data/gbm.cv.results.once.Rdata")
 }
 
-save(gbm.cv.results, file="./revision-03-csd-crc/data/gbm.cv.results.once.Rdata")
-load(file="./revision-03-csd-crc/data/gbm.cv.results.once.Rdata")
+save(gbm.cv.results, file="../data/gbm.cv.results.once.Rdata")
+load(file="../data/gbm.cv.results.once.Rdata")
 
 
 
@@ -126,7 +113,6 @@ ind.best <- which.max(gbm.cv.results$auc)
 # -------------------------------------------------------------------------------------------
 ############################################# No.1 RSF ######################################
 # -------------------------------------------------------------------------------------------
-
 ###################################### modeling ##################################
 
 model <- rfsrc(Surv(time, crstatus) ~ race + age + site + hist + grade + ajcc7t + ajcc7n + ajcc7m + positivelymph + surgery + radiation,
@@ -139,24 +125,20 @@ model <- rfsrc(Surv(time, crstatus) ~ race + age + site + hist + grade + ajcc7t 
                ntime = c(12, 24, 36, 48, 60, 72, 84, 96),
                tree.err = TRUE)
 
-save(model, file = "./revision-03-csd-crc/data/model_rsf.R")
-load(file = "./revision-03-csd-crc/data/model_rsf.R")
+save(model, file = "../data/model_rsf.R")
+load(file = "../data/model_rsf.R")
 print(model)
-# Error rate: 13.64%, 18.87%
 
 
 ####################################### cindex ###################################
 cindex.train.rsf <- 1 - model$err.rate[nrow(model$err.rate), 1]
 cindex.train.rsf
-### 0.8191179 
 
 pred.rsf <- predict(model, newdata = test, proximity = FALSE, outcome = "test")
 pred.rsf
-# Test set error rate: 13.5%, 18.76%
+
 cindex.test.rsf <- 1 - pred.rsf$err.rate[nrow(pred.rsf$err.rate), 1]
 cindex.test.rsf
-# 0.8138493  
-
 
 
 ####################################### ibs ###################################
@@ -167,7 +149,6 @@ ibs.train.rsf <- pec(object = model,
                      data = train, verbose = F, maxtime = 200)
 ibs.train.v.rsf <- crps(ibs.train.rsf)[2]
 ibs.train.v.rsf
-### 0.1088995
 
 
 ibs.test.rsf <- pec(object = model,
@@ -176,9 +157,6 @@ ibs.test.rsf <- pec(object = model,
                     data = test, verbose = F, maxtime = 200)
 ibs.test.v.rsf <- crps(ibs.test.rsf)[2]
 ibs.test.v.rsf
-### 0.116107
-
-
 
 
 
@@ -218,18 +196,14 @@ Beta.rsf <- function(data, indices){
 }
 
 result.ci.rsf <- boot(data = train, statistic = Beta.rsf, R = 100)
-save(result.ci.rsf, file = "./revision-03-csd-crc/data/result.ci.rsf.R")
-load(file = "./revision-03-csd-crc/data/result.ci.rsf.R")
+save(result.ci.rsf, file = "../data/result.ci.rsf.R")
+load(file = "../data/result.ci.rsf.R")
 
 
 round(mean(result.ci.rsf$t[, 1]), 4)
-# 0.8308
 round(mean(result.ci.rsf$t[, 2]), 4)
-# 0.8136
 round(mean(result.ci.rsf$t[, 3]), 4)
-# 0.1052
 round(mean(result.ci.rsf$t[, 4]), 4)
-# 0.1166
 
 
 get_cis <- function(idx){
@@ -241,25 +215,14 @@ get_cis <- function(idx){
 }
 # train cindex
 round(get_cis(1), 4)
-## 0.8281 0.8333
 
 # test cindex
 round(get_cis(2), 4)
-## 0.8133 0.8139
 
 
 # train ibs
 round(get_cis(3), 4)
-## 0.1039 0.1063
 
 # test ibs
 round(get_cis(4), 4)
-## 0.1164 0.1169
-
-
-
-
-
-
-
 

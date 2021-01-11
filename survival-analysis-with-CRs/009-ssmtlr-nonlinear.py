@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[24]:
-
-
 import numpy as np
 import pandas as pd
 import h5py
@@ -18,10 +15,6 @@ from lifelines.utils import concordance_index
 from pycox.evaluation import EvalSurv
 
 
-# In[2]:
-
-# from tensorflow import keras
-# from keras.models import Sequential
 from tensorflow.keras.layers import *
 from tensorflow.keras.models import *
 from tensorflow.keras.optimizers import *
@@ -36,9 +29,6 @@ import os
 import tensorflow as tf
 
 
-# In[3]:
-
-
 np.random.seed(1234)
 tf.random.set_seed(2021)
 
@@ -46,27 +36,18 @@ df_train = pd.read_csv("../data/007-data_crs_train_py.csv")
 df_test = pd.read_csv("../data/007-data_crs_test_py.csv")
 
 alldata = pd.concat([df_train, df_test])
-# In[4]:
-
 
 cols_standardize = ['age', "positivelymph"]
 cols_leave = [x for x in df_train.columns.to_list() if x not in ["time", "crstatus", "age", "positivelymph"]]
-
 standardize = [([col], StandardScaler()) for col in cols_standardize]
 leave = [(col, None) for col in cols_leave]
-
 x_mapper = DataFrameMapper(standardize + leave)
-
 x_train = x_mapper.fit_transform(df_train).astype('float32')
 x_test = x_mapper.transform(df_test).astype('float32')
 
 
-# In[5]:
-
-
 def get_y_labels(status, time):
     ret = np.zeros((status.shape[0], np.max(time) + 1))
-    # ret = np.ones((status.shape[0], 8))
     for i in range(status.shape[0]):
         if status[i] == 1: # csd
             ret[i, 0:time[i] - 1 + 1] = 0
@@ -78,9 +59,6 @@ def get_y_labels(status, time):
             ret[i, 0:time[i] + 1] = 0
             ret[i, time[i] + 1:] = 3   
     return ret
-
-
-# In[6]:
 
 
 y_train = get_y_labels(df_train['crstatus'], df_train['time'])
@@ -98,14 +76,8 @@ print ("test_set_x shape: " + str(x_test.shape))
 print ("test_set_y shape: " + str(y_test.shape))
 
 
-# In[7]:
-
-
 y_train_status = to_categorical(y_train)
 y_test_status = to_categorical(y_test)
-
-
-# In[8]:
 
 
 def reshape_y(y):
@@ -116,55 +88,42 @@ def reshape_y(y):
     return ret   
 
 
-# In[9]:
-
-
 y_train_status = reshape_y(y_train_status)
 y_test_status = reshape_y(y_test_status)
-
-
 
 y_train = y_train.astype(np.int32)
 y_test = y_test.astype(np.int32)
 
-
-
 y_train_status_f = y_train_status + [y_train] + [y_train]
 y_test_status_f = y_test_status + [y_test] + [y_test]
-
 
 get_target = lambda df: (df['time'].values, df['crstatus'].values)
 durations_train, events_train = get_target(df_train)
 durations_test, events_test = get_target(df_test)
 
 
-# In[10]:
-
-
 def logloss(lambda3):
     def loss(y_true, y_pred):
-        mask_alive = y_true[:, 0] # y_true[:, np.array([0,2,4,6,8,10,12,14])]
-        mask_dead_cause = y_true[:, 1] # y_true[:, np.array([1,3,5,7,9,11,13,15])]
-        mask_dead_other = y_true[:, 2] # y_true[:, np.array([0,2,4,6,8,10,12,14])]
+        mask_alive = y_true[:, 0]
+        mask_dead_cause = y_true[:, 1]
+        mask_dead_other = y_true[:, 2]
         mask_censored = 1 - (mask_alive + mask_dead_cause + mask_dead_other)
         logloss = -1 * k.mean(mask_alive * k.log(y_pred[:, 0]) + mask_dead_cause * k.log(y_pred[:, 1])
-                         + mask_dead_other * k.log(y_pred[:, 2])) #/ 43185
+                         + mask_dead_other * k.log(y_pred[:, 2]))
         - lambda3 * k.mean(y_pred[:, 1] * mask_censored * k.log(y_pred[:, 1]) + y_pred[:, 0] * mask_censored * k.log(y_pred[:, 0])
-                   + y_pred[:, 2] * mask_censored * k.log(y_pred[:, 2])) # / 39899
+                   + y_pred[:, 2] * mask_censored * k.log(y_pred[:, 2]))
         return logloss
     return loss
 
 
 def rankingloss_cause(y_true, y_pred, name = None):
     ranking_loss = 0
-    # idx = [1,3,5,7,9,11,13,15]
     for i in range(time_length):
         for j in range(i + 1, time_length, 1):
             tmp = y_pred[:, i] - y_pred[:, j]
             tmp1 = tmp > 0
             tmp1 = tf.cast(tmp1, tf.float32)
-            # ranking_loss = ranking_loss + k.mean(f_loss([tmp]) * tmp)
-            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i) * 60))
+            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i)))
     return ranking_loss
 
 
@@ -175,34 +134,29 @@ def rankingloss_other(y_true, y_pred, name = None):
             tmp = y_pred[:, i] - y_pred[:, j]
             tmp1 = tmp > 0
             tmp1 = tf.cast(tmp1, tf.float32)
-            # ranking_loss = ranking_loss + k.mean(f_loss([tmp]) * tmp)
-            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i) * 12))
+            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i)))
     return ranking_loss
 
 
-# In[11]:
 
+ssmtlr_cv_results = pd.read_csv("../data/cv.results.ssmtlr.csv")
+print(ssmtlr_cv_results["cindex"].values.max())
+ind_best = ssmtlr_cv_results["cindex"].values.argmax()
 
-lambda3 = 1
-lambda4 = 0.001
-lr = 0.01
-batch_size = 2048
+lambda3 = ssmtlr_cv_results.iloc[ind_best, 0]
+lambda4 = ssmtlr_cv_results.iloc[ind_best, 1]
+lr = ssmtlr_cv_results.iloc[ind_best, 2]
+batch_size = ssmtlr_cv_results.iloc[ind_best, 3]
+
 
 input_tensor = Input((x_train.shape[1],))
 x = input_tensor
-# x = Dense(16, activation = 'sigmoid', kernel_regularizer = L1L2(l1 = 0., l2 = 0.),
-    # kernel_initializer= tf.keras.initializers.VarianceScaling())(x)
-# x = BatchNormalization()(x)
 x = Dense(16, activation = 'sigmoid', kernel_regularizer = L1L2(l1 = 0., l2 = 0.),
     kernel_initializer= tf.keras.initializers.VarianceScaling())(x)
 x = BatchNormalization()(x)
 x = Dense(8, activation = 'sigmoid', kernel_regularizer = L1L2(l1 = 0., l2 = 0.),
     kernel_initializer= tf.keras.initializers.VarianceScaling())(x)
 x = BatchNormalization()(x)
-
-
-
-# In[18]:
 
 
 prepare_list = {}
@@ -224,17 +178,11 @@ losses['ranking_other'] = rankingloss_other
 loss_weights['ranking_cause'] = lambda4
 loss_weights['ranking_other'] = lambda4
 
-# In[21]:
-
 
 model = Model(input_tensor, list(prepare_list.values()) + [xx2] + [xx3])
-# model = Model(input_tensor, list(prepare_list.values()) + [xx2])
 model.compile(optimizer = Adam(lr),
-              loss = losses, # 'categorical_crossentropy',
+              loss = losses,
               loss_weights = loss_weights)
-
-
-# In[12]:
 
 
 model.fit(x_train, y_train_status_f, epochs = 100, validation_data=(x_test, y_test_status_f), 
@@ -243,35 +191,21 @@ model.fit(x_train, y_train_status_f, epochs = 100, validation_data=(x_test, y_te
           ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, verbose=0, mode='auto', min_delta=0.001, cooldown=0, min_lr=0),
           EarlyStopping(patience = 5)])
 
-
-# In[13]:
-
-
 y_test_status_pred = model.predict(x_test)
 pred = np.array(y_test_status_pred[0:time_length])
 pred_dead = pred[:, :, 1]
-
-
 
 cif1 = pd.DataFrame(pred_dead, np.arange(time_length) + 1)
 ev1 = EvalSurv(1-cif1, durations_test//time_interval, events_test == 1, censor_surv='km')
 c_index = ev1.concordance_td('antolini')
 ibs = ev1.integrated_brier_score(np.arange(time_length)) # np.linspace(0, time_length, time_length + 1))
 
-
 print('C-index: {:.4f}'.format(c_index))
 print('IBS: {:.4f}'.format(ibs))
-
-
-# In[32]:
-
 
 alldata = pd.concat([pd.DataFrame(x_train), pd.DataFrame(x_test)])
 recordNum = alldata.shape[0]
 dim = alldata.shape[1]
-
-
-# In[33]:
 
 
 survivalByVar = {'age': pd.DataFrame(columns = ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10',
@@ -289,13 +223,7 @@ survivalByVar = {'age': pd.DataFrame(columns = ['A01', 'A02', 'A03', 'A04', 'A05
                  'radiation': pd.DataFrame(columns = ['No need', 'Need'])}
 
 
-# In[34]:
-
-
 survivalByAge = []
-
-
-# In[35]:
 
 
 # age
@@ -308,9 +236,6 @@ for i in np.linspace(np.min(alldata[0]), np.max(alldata[0]), 26):
     survivalByAge.append(pred_dead)
 
 
-# In[36]:
-
-
 with open('./survivalByAge.pk', 'wb') as f:
     pickle.dump(survivalByAge, f)
 
@@ -321,16 +246,12 @@ par_dep_3_age = partial_dep[:, 5]
 par_dep_2_age = partial_dep[:, 3]
 par_dep_1_age = partial_dep[:, 1]
 
-
 age = np.linspace(0, 1, 26)
 age = np.round(age * (107 - 11) + 11)
-
 nonlinear_age = pd.DataFrame({'age': age, '1-year': par_dep_1_age, '2-year': par_dep_2_age,
                              '3-year': par_dep_3_age, '4-year': par_dep_4_age, '5-year': par_dep_5_age})
-
 nonlinear_age.to_csv('../results/nonlinear_age.csv', index = False)
 
-# In[37]:
 
 
 # PLN
@@ -345,30 +266,22 @@ for i in np.linspace(np.min(alldata[0]), np.max(alldata[0]), 26):
 with open('./survivalByPLN.pk', 'wb') as f:
     pickle.dump(survivalByPLN, f)
 
-
 partial_dep_pln = np.mean(survivalByPLN, axis = 2)
-
 par_dep_5_pln = partial_dep_pln[:, 9]
 par_dep_4_pln = partial_dep_pln[:, 7]
 par_dep_3_pln = partial_dep_pln[:, 5]
 par_dep_2_pln = partial_dep_pln[:, 3]
 par_dep_1_pln = partial_dep_pln[:, 1]
 
-
 pln = np.linspace(0, 1, 26)
 pln = np.round(pln * (np.max(alldata['positivelymph']) - 0) + 0)
-pln
-
 nonlinear_pln = pd.DataFrame({'age': pln, '1-year': par_dep_1_pln, '2-year': par_dep_2_pln,
-                             '3-year': par_dep_3_pln, '4-year': par_dep_4_pln, '5-year': par_dep_5_pln})
+  '3-year': par_dep_3_pln, '4-year': par_dep_4_pln, '5-year': par_dep_5_pln})
 nonlinear_pln.to_csv('../results/nonlinear_pln.csv', index = False)
-
-# In[38]:
 
 
 # Race
 survivalByRace = []
-
 alldataTmp = alldata.copy()
 alldataTmp[2] = 1
 alldataTmp[3] = 0
@@ -377,10 +290,6 @@ alldata_pred = model.predict(np.asarray(alldataTmp))
 pred = np.array(alldata_pred[0:time_length])
 pred_dead = pred[:, :, 1]
 survivalByRace.append(pred_dead)
-
-
-# In[39]:
-
 
 alldataTmp = alldata.copy()
 alldataTmp[2] = 0
@@ -391,10 +300,6 @@ pred = np.array(alldata_pred[0:time_length])
 pred_dead = pred[:, :, 1]
 survivalByRace.append(pred_dead)
 
-
-# In[40]:
-
-
 alldataTmp = alldata.copy()
 alldataTmp[2] = 0
 alldataTmp[3] = 0
@@ -404,24 +309,15 @@ pred = np.array(alldata_pred[0:time_length])
 pred_dead = pred[:, :, 1]
 survivalByRace.append(pred_dead)
 
-
-# In[41]:
-
-
 with open('./survivalByRace.pk', 'wb') as f:
     pickle.dump(survivalByRace, f)
 
-
-# In[ ]:
 pd.DataFrame(survivalByRace[0].T).to_csv('./results/nonlinear_race_white.csv', index = False)
 pd.DataFrame(survivalByRace[1].T).to_csv('./results/nonlinear_race_black.csv', index = False)
 pd.DataFrame(survivalByRace[2].T).to_csv('./results/nonlinear_race_others.csv', index = False)
-
 partial_dep_race = np.mean(survivalByRace, axis = 2)
 pd.DataFrame(partial_dep_race).to_csv('./results/nonlinear_race.csv', index = False)
 
-
-# In[42]:
 
 
 # Site
@@ -457,17 +353,11 @@ survivalBySite.append(pred_dead)
 with open('./survivalBySite.pk', 'wb') as f:
     pickle.dump(survivalBySite, f)
 
-
-# In[ ]:
-
 pd.DataFrame(survivalBySite[0].T).to_csv('./results/nonlinear_site_left_colon.csv', index = False)
 pd.DataFrame(survivalBySite[1].T).to_csv('./results/nonlinear_site_right_colon.csv', index = False)
 pd.DataFrame(survivalBySite[2].T).to_csv('./results/nonlinear_site_rectum.csv', index = False)
 partial_dep_site = np.mean(survivalBySite, axis = 2)
 pd.DataFrame(partial_dep_site).to_csv('./results/nonlinear_site.csv', index = False)
-
-
-# In[43]:
 
 
 # hist
@@ -492,16 +382,10 @@ survivalByHist.append(pred_dead)
 with open('./survivalByHist.pk', 'wb') as f:
     pickle.dump(survivalByHist, f)
 
-
-# In[ ]:
 pd.DataFrame(survivalByHist[0].T).to_csv('./results/nonlinear_hist_adeno.csv', index = False)
 pd.DataFrame(survivalByHist[1].T).to_csv('./results/nonlinear_hist_others.csv', index = False)
 partial_dep_hist = np.mean(survivalByHist, axis = 2)
 pd.DataFrame(partial_dep_hist).to_csv('./results/nonlinear_hist.csv', index = False)
-
-
-
-# In[44]:
 
 
 # grade
@@ -556,8 +440,6 @@ pd.DataFrame(survivalByGrade[2].T).to_csv('./results/nonlinear_grade_3.csv', ind
 pd.DataFrame(survivalByGrade[3].T).to_csv('./results/nonlinear_grade_4.csv', index = False)
 partial_dep_grade = np.mean(survivalByGrade, axis = 2)
 pd.DataFrame(partial_dep_grade).to_csv('./results/nonlinear_grade.csv', index = False)
-
-# In[45]:
 
 
 # AJCC7T
@@ -630,14 +512,6 @@ pd.DataFrame(survivalByAJCC7T[4].T).to_csv('./results/nonlinear_Tstage_T4b.csv',
 partial_dep_AJCC7T = np.mean(survivalByAJCC7T, axis = 2)
 pd.DataFrame(partial_dep_AJCC7T).to_csv('./results/nonlinear_Tstage.csv', index = False)
 
-# In[ ]:
-
-
-
-
-
-# In[46]:
-
 
 # AJCC7N
 survivalByAJCC7N = []
@@ -707,13 +581,6 @@ pd.DataFrame(survivalByAJCC7N[3].T).to_csv('./results/nonlinear_AJCC7N_4.csv', i
 pd.DataFrame(survivalByAJCC7N[4].T).to_csv('./results/nonlinear_AJCC7N_5.csv', index = False)
 partial_dep_AJCC7N = np.mean(survivalByAJCC7N, axis = 2)
 pd.DataFrame(partial_dep_AJCC7N).to_csv('./results/nonlinear_Nstage.csv', index = False)
-# In[ ]:
-
-
-
-
-
-# In[47]:
 
 
 # AJCC7M
@@ -742,13 +609,6 @@ pd.DataFrame(survivalByAJCC7M[0].T).to_csv('./results/nonlinear_AJCC7M_1.csv', i
 pd.DataFrame(survivalByAJCC7M[1].T).to_csv('./results/nonlinear_AJCC7M_2.csv', index = False)
 partial_dep_AJCC7M = np.mean(survivalByAJCC7M, axis = 2)
 pd.DataFrame(partial_dep_AJCC7M).to_csv('./results/nonlinear_AJCC7M.csv', index = False)
-# In[ ]:
-
-
-
-
-
-# In[48]:
 
 
 # Surgery
@@ -837,13 +697,6 @@ pd.DataFrame(survivalBySurgery[4].T).to_csv('./results/nonlinear_Surgery_5.csv',
 pd.DataFrame(survivalBySurgery[5].T).to_csv('./results/nonlinear_Surgery_6.csv', index = False)
 partial_dep_Surgery = np.mean(survivalBySurgery, axis = 2)
 pd.DataFrame(partial_dep_Surgery).to_csv('./results/nonlinear_Surgery.csv', index = False)
-# In[ ]:
-
-
-
-
-
-# In[49]:
 
 
 # Radiation
@@ -872,8 +725,5 @@ pd.DataFrame(survivalByRadiation[0].T).to_csv('./results/nonlinear_radiation_1.c
 pd.DataFrame(survivalByRadiation[1].T).to_csv('./results/nonlinear_radiation_2.csv', index = False)
 partial_dep_radiation = np.mean(survivalByRadiation, axis = 2)
 pd.DataFrame(partial_dep_radiation).to_csv('./results/nonlinear_radiation.csv', index = False)
-# In[ ]:
-
-
 
 

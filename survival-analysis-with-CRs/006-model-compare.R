@@ -1,7 +1,5 @@
 
-# install.packages("BayesFactor")
-# install.packages("PMCMR")
-setwd("F:\\007-research\\002-papers\\[2019-01 SCI NO 3 深度生存分析]\\revision-03-csd-crc")
+setwd("~/SSMTL")
 rm(list = ls())
 
 library(PMCMR)
@@ -10,13 +8,13 @@ options(scipen=200)
 
 set.seed(100)
 # ------------------------------------------- model performance ---------------------
-load("./data/result.ci.fgr.R")
+load("../data/result.ci.fgr.R")
 res.fg <- data.frame("cindex" = result.ci$t[, 2], "ibs" = result.ci$t[, 4])
-load("./data/result.ci.rsf.R")
+load("../data/result.ci.rsf.R")
 res.rsf <- data.frame("cindex" = result.ci.rsf$t[, 2], "ibs" = result.ci.rsf$t[, 4])
-res.smlp <- read.csv("./data/results.ci.smlp.csv")
-res.deephit <- read.csv("./data/results.ci.deephit.csv")
-res.ssmtlr <- read.csv("./data/results.ci.ssmtlr.csv")
+res.smlp <- read.csv("../data/results.ci.smlp.csv")
+res.deephit <- read.csv("../data/results.ci.deephit.csv")
+res.ssmtlr <- read.csv("../data/results.ci.ssmtlr.csv")
 
 
 

@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 import numpy as np
 import pandas as pd
 import h5py
@@ -17,10 +14,6 @@ from lifelines.utils import concordance_index
 from pycox.evaluation import EvalSurv
 
 
-# In[2]:
-
-# from tensorflow import keras
-# from keras.models import Sequential
 from tensorflow.keras.layers import *
 from tensorflow.keras.models import *
 from tensorflow.keras.optimizers import *
@@ -33,21 +26,15 @@ from pycox.preprocessing.label_transforms import LabTransDiscreteTime
 
 import os
 import tensorflow as tf
-# from tensorflow.keras.backend.tensorflow_backend import set_session
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-# config = tf.ConfigProto()
-# config.gpu_options.allow_growth = True
-# config.gpu_options.per_process_gpu_memory_fraction = 0.8
-# set_session(tf.Session(config=config))
 
 np.random.seed(1234)
 tf.random.set_seed(2021)
 
 
 
-df_train = pd.read_csv("./data/007-data_crs_train_py.csv")
-df_test = pd.read_csv("./data/007-data_crs_test_py.csv")
+df_train = pd.read_csv("../data/007-data_crs_train_py.csv")
+df_test = pd.read_csv("../data/007-data_crs_test_py.csv")
 
 
 
@@ -66,7 +53,6 @@ x_test = x_mapper.transform(df_test).astype('float32')
 
 def get_y_labels(status, time):
     ret = np.zeros((status.shape[0], np.max(time) + 1))
-    # ret = np.ones((status.shape[0], 8))
     for i in range(status.shape[0]):
         if status[i] == 1: # csd
             ret[i, 0:time[i] - 1 + 1] = 0
@@ -78,9 +64,6 @@ def get_y_labels(status, time):
             ret[i, 0:time[i] + 1] = 0
             ret[i, time[i] + 1:] = 3   
     return ret
-
-
-# In[7]:
 
 
 y_train = get_y_labels(df_train['crstatus'], df_train['time'])
@@ -98,14 +81,10 @@ print ("test_set_x shape: " + str(x_test.shape))
 print ("test_set_y shape: " + str(y_test.shape))
 
 
-# In[9]:
-
 
 y_train_status = to_categorical(y_train)
 y_test_status = to_categorical(y_test)
 
-
-# In[11]:
 
 def reshape_y(y):
     dim = y.shape[1]
@@ -115,28 +94,15 @@ def reshape_y(y):
     return ret        
 
 
-# In[12]:
-
-
 y_train_status = reshape_y(y_train_status)
 y_test_status = reshape_y(y_test_status)
-
-
-# In[13]:
-
 
 y_train = y_train.astype(np.int32)
 y_test = y_test.astype(np.int32)
 
-
-# In[14]:
-
-
 y_train_status_f = y_train_status + [y_train] + [y_train]
 y_test_status_f = y_test_status + [y_test] + [y_test]
 
-
-# In[15]:
 
 get_target = lambda df: (df['time'].values, df['crstatus'].values)
 durations_train, events_train = get_target(df_train)
@@ -145,28 +111,26 @@ durations_test, events_test = get_target(df_test)
 
 def logloss(lambda3):
     def loss(y_true, y_pred):
-        mask_alive = y_true[:, 0] # y_true[:, np.array([0,2,4,6,8,10,12,14])]
-        mask_dead_cause = y_true[:, 1] # y_true[:, np.array([1,3,5,7,9,11,13,15])]
-        mask_dead_other = y_true[:, 2] # y_true[:, np.array([0,2,4,6,8,10,12,14])]
+        mask_alive = y_true[:, 0]
+        mask_dead_cause = y_true[:, 1]
+        mask_dead_other = y_true[:, 2]
         mask_censored = 1 - (mask_alive + mask_dead_cause + mask_dead_other)
         logloss = -1 * k.mean(mask_alive * k.log(y_pred[:, 0]) + mask_dead_cause * k.log(y_pred[:, 1])
-                         + mask_dead_other * k.log(y_pred[:, 2])) #/ 43185
+                         + mask_dead_other * k.log(y_pred[:, 2]))
         - lambda3 * k.mean(y_pred[:, 1] * mask_censored * k.log(y_pred[:, 1]) + y_pred[:, 0] * mask_censored * k.log(y_pred[:, 0])
-                   + y_pred[:, 2] * mask_censored * k.log(y_pred[:, 2])) # / 39899
+                   + y_pred[:, 2] * mask_censored * k.log(y_pred[:, 2]))
         return logloss
     return loss
 
 
 def rankingloss_cause(y_true, y_pred, name = None):
     ranking_loss = 0
-    # idx = [1,3,5,7,9,11,13,15]
     for i in range(time_length):
         for j in range(i + 1, time_length, 1):
             tmp = y_pred[:, i] - y_pred[:, j]
             tmp1 = tmp > 0
             tmp1 = tf.cast(tmp1, tf.float32)
-            # ranking_loss = ranking_loss + k.mean(f_loss([tmp]) * tmp)
-            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i) * 60))
+            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i)))
     return ranking_loss
 
 
@@ -177,22 +141,24 @@ def rankingloss_other(y_true, y_pred, name = None):
             tmp = y_pred[:, i] - y_pred[:, j]
             tmp1 = tmp > 0
             tmp1 = tf.cast(tmp1, tf.float32)
-            # ranking_loss = ranking_loss + k.mean(f_loss([tmp]) * tmp)
-            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i) * 12))
+            ranking_loss = ranking_loss + k.mean((tmp1 * tmp * (j - i)))
     return ranking_loss
 
 
+ssmtlr_cv_results = pd.read_csv("../data/cv.results.ssmtlr.csv")
+print(ssmtlr_cv_results["cindex"].values.max())
+ind_best = ssmtlr_cv_results["cindex"].values.argmax()
 
-lambda3 = 1
-lambda4 = 0.001
-lr = 0.01
-batch_size = 2048
+lambda3 = ssmtlr_cv_results.iloc[ind_best, 0]
+lambda4 = ssmtlr_cv_results.iloc[ind_best, 1]
+lr = ssmtlr_cv_results.iloc[ind_best, 2]
+batch_size = ssmtlr_cv_results.iloc[ind_best, 3]
+
+
 
 input_tensor = Input((x_train.shape[1],))
 x = input_tensor
-# x = Dense(16, activation = 'sigmoid', kernel_regularizer = L1L2(l1 = 0., l2 = 0.),
-    # kernel_initializer= tf.keras.initializers.VarianceScaling())(x)
-# x = BatchNormalization()(x)
+
 x = Dense(16, activation = 'sigmoid', kernel_regularizer = L1L2(l1 = 0., l2 = 0.),
     kernel_initializer= tf.keras.initializers.VarianceScaling())(x)
 x = BatchNormalization()(x)
@@ -201,8 +167,6 @@ x = Dense(8, activation = 'sigmoid', kernel_regularizer = L1L2(l1 = 0., l2 = 0.)
 x = BatchNormalization()(x)
 
 
-
-# In[18]:
 
 
 prepare_list = {}
@@ -224,16 +188,12 @@ losses['ranking_other'] = rankingloss_other
 loss_weights['ranking_cause'] = lambda4
 loss_weights['ranking_other'] = lambda4
 
-# In[21]:
 
 
 model = Model(input_tensor, list(prepare_list.values()) + [xx2] + [xx3])
-# model = Model(input_tensor, list(prepare_list.values()) + [xx2])
 model.compile(optimizer = Adam(lr),
-              loss = losses, # 'categorical_crossentropy',
+              loss = losses,
               loss_weights = loss_weights)
-
-# In[ ]:
 
 
 model.fit(x_train, y_train_status_f, epochs = 100, validation_data=(x_test, y_test_status_f), 
@@ -241,9 +201,6 @@ model.fit(x_train, y_train_status_f, epochs = 100, validation_data=(x_test, y_te
           callbacks = [
           ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, verbose=0, mode='auto', min_delta=0.001, cooldown=0, min_lr=0),
           EarlyStopping(patience = 5)])
-
-
-# In[ ]:
 
 
 y_test_status_pred = model.predict(x_test)
@@ -255,7 +212,7 @@ pred_dead = pred[:, :, 1]
 cif1 = pd.DataFrame(pred_dead, np.arange(time_length) + 1)
 ev1 = EvalSurv(1-cif1, durations_test//time_interval, events_test == 1, censor_surv='km')
 c_index = ev1.concordance_td('antolini')
-ibs = ev1.integrated_brier_score(np.arange(time_length)) # np.linspace(0, time_length, time_length + 1))
+ibs = ev1.integrated_brier_score(np.arange(time_length))
 
 
 print('C-index: {:.4f}'.format(c_index))
@@ -284,7 +241,6 @@ for i in range(testCol):
             testTmp[i] = testTmp[i] + np.random.normal(0, epsilon * sigma, testNo)
         else:
             s = np.random.binomial(1, 0.5, testNo)
-            # testTmp[i] = testTmp[i] * (1 - s) + (1 - x) * s 
             testTmp[i] = testTmp[i] * (1 - s) + (1 - testTmp[i]) * s 
         Y_test_pred_tmp = model.predict(np.asarray(testTmp))
         pred_tmp = np.array(Y_test_pred_tmp[0:time_length])
@@ -292,12 +248,11 @@ for i in range(testCol):
         cif1 = pd.DataFrame(pred_dead_tmp, np.arange(time_length) + 1)
         ev1 = EvalSurv(1-cif1, durations_test//time_interval, events_test == 1, censor_surv='km')
         c_index = ev1.concordance_td('antolini')
-        # error = 0.8249 - c_index
         errors.append(c_index)
     vimp.append(np.mean(errors))
 
 
 result = pd.DataFrame({"vimp": vimp})
-result.to_csv('./data/ssmtlr_vimp.csv', index = False)
+result.to_csv('../data/ssmtlr_vimp.csv', index = False)
 
 

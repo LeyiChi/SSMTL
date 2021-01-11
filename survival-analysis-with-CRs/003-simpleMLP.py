@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[16]:
-
-
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
@@ -16,36 +13,23 @@ from pycox.models import DeepHit
 from pycox.evaluation import EvalSurv
 
 
-# In[2]:
-
 
 np.random.seed(1234)
 _ = torch.manual_seed(1234)
-
-
-# In[3]:
 
 
 df_train = pd.read_csv("./data/007-data_crs_train_py.csv")
 df_test = pd.read_csv("./data/007-data_crs_test_py.csv")
 
 
-# In[4]:
 
 
 get_x = lambda df: (df
                     .drop(columns=['time', 'crstatus'])
                     .values.astype('float32'))
-
-
-# In[5]:
-
-
 x_train = get_x(df_train)
 x_test = get_x(df_test)
 
-
-# In[6]:
 
 
 class LabTransform(LabTransDiscreteTime):
@@ -54,24 +38,15 @@ class LabTransform(LabTransDiscreteTime):
         events[is_event == 0] = 0
         return durations, events.astype('int64')
 
-
-# In[7]:
-
-
 num_durations = 108
 labtrans = LabTransform(num_durations)
 get_target = lambda df: (df['time'].values, df['crstatus'].values)
-
-
-# In[8]:
 
 
 y_train = labtrans.fit_transform(*get_target(df_train))
 y_test = labtrans.fit_transform(*get_target(df_test))
 durations_test, events_test = get_target(df_test)
 
-
-# In[9]:
 
 
 class SimpleMLP(torch.nn.Module):
@@ -90,8 +65,6 @@ class SimpleMLP(torch.nn.Module):
         out = self.mlp(input)
         return out.view(out.size(0), self.num_risks, -1)
 
-# In[30]:
-
 
 in_features = x_train.shape[1]
 num_risks = y_train[1].max()
@@ -99,19 +72,13 @@ out_features = len(labtrans.cuts)
 dropout = [0.0]
 
 
-# In[24]:
-
 
 list_num_nodes_shared = [[32, 8], [16, 8], [16, 4], [8, 4]]
 list_batch_norm = [False]
 list_lr = [0.01, 0.001, 0.001]
 list_alpha = [0.1, 0.2, 0.3, 0.4]
-# list_sigma = [0.1, 0.2, 0.3, 0.4]
-list_sigma = [0.1, 0.2]
+list_sigma = [0.1, 0.2, 0.3, 0.4]
 list_batch_size = [128, 256]
-
-
-# In[25]:
 
 
 parameters = []
@@ -124,26 +91,12 @@ for num_nodes_shared in list_num_nodes_shared:
                         parameters.append([num_nodes_shared, batch_norm, lr, alpha, sigma, batch_size])
 
 
-# In[26]:
-
-
 smlp_cv_results = pd.DataFrame(parameters)
 smlp_cv_results["cindex"] = 0
 
 
-# In[27]:
-
-
 kf = KFold(n_splits = 5)
 
-
-# In[28]:
-
-
-smlp_cv_results.shape
-
-
-# In[37]:
 
 
 for index in range(smlp_cv_results.shape[0]):
@@ -156,7 +109,6 @@ for index in range(smlp_cv_results.shape[0]):
     
     cindexes = []
     for train_index, test_index in kf.split(df_train):
-        # print("Train:", train_index, "Validation:",test_index)
         X_tr = x_train[train_index, ]
         X_val = x_train[test_index, ]
         Y_tr_0 = y_train[0][train_index, ]
@@ -183,25 +135,13 @@ for index in range(smlp_cv_results.shape[0]):
         cif1 = pd.DataFrame(cif[0], model.duration_index)
         ev1 = EvalSurv(1-cif1, durations_test, events_test == 1, censor_surv='km')
         c_index = ev1.concordance_td()
-    
-        
-        # ibs = ev1.integrated_brier_score(np.linspace(0, durations_test.max(), 100))
 
         cindexes.append(c_index)
-        # ibss.append(ibs)
+
 
     smlp_cv_results.iloc[index, 6] = np.mean(cindexes)
     smlp_cv_results.to_csv('./data/cv.results.smlp.csv', index = False)
-    # smlp_cv_results.iloc[index, 7] = c_index
-    # list_ibs.append(np.mean(ibss))
-    # print(parameter, np.mean(cindexes), np.mean(ibss))
-    # print(index, np.mean(cindexes))
     print(smlp_cv_results.iloc[index, ].values)
-
-
-# In[ ]:
-
-
 
 
 
@@ -224,7 +164,6 @@ optimizer = tt.optim.AdamWR(lr = lr, decoupled_weight_decay = 0.01,
 model = DeepHit(net, optimizer, alpha = alpha, sigma = sigma, duration_index = labtrans.cuts)
 
 epochs = 100
-# callbacks = [tt.callbacks.EarlyStoppingCycle()]
 callbacks = [tt.callbacks.EarlyStopping(patience = 3)]
 verbose = True # set to True if you want printout
 
@@ -286,9 +225,7 @@ mean_ibs = np.mean(ibss)
 
 # Print the mean
 print('mean cindex =', mean_cindex)
-# 0.8174
 print('mean ibs =', mean_ibs)
-# 0.1447
 
 
 ci_cindex = np.percentile(c_indexes, [2.5, 97.5])
@@ -296,16 +233,5 @@ ci_ibs = np.percentile(ibss, [2.5, 97.5])
 
 # Print the confidence interval
 print('confidence interval =', ci_cindex)
-# [0.8149, 0.8191]
 print('confidence interval =', ci_ibs)
-# [0.1417, 0.1500]
-
-
-
-
-
-# In[ ]:
-
-
-
 
