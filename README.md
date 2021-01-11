@@ -16,8 +16,14 @@ git clone https://github.com/LeyiChi/SSMTL.git
 
 ### Data Preparation
 1. Extract data from the downloaded SEER data using sql. The data extraction processes were as follows:
-- CRC data
+- CRC data <br/>
 ![image](./images/data-extract-crc.png)
+- Lung data <br/>
+![image](./images/data-extract-lung.png)
+- Breast data <br/>
+![image](./images/data-extract-breast.png)
+- Prostate data <br/>
+![image](./images/data-extract-prostate.png)
 
 convert images and labels from .nii.gz to .npy format
 2. set the data path as *data_path*, put images and labels to '*data_path*/images' and '*data_path*/labels', respectively. 
