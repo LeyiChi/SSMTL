@@ -1,5 +1,5 @@
 
-setwd("~/SSMTL")
+setwd("~/SSMTL/survival-analysis-with-CRs")
 
 rm(list=ls())
 

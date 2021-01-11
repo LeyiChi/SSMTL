@@ -1,12 +1,12 @@
 
-setwd("~/SSMTL/survival-analysis-with-CRs")
+setwd("~/SSMTL/survival-analysis-without-CRs")
 rm(list = ls())
 
 library(ggplot2)
 
-temp <- read.csv('../data/007-data_crs_train.csv', stringsAsFactors = TRUE)
+temp <- read.csv('../data/007-data_os_train.csv', stringsAsFactors = TRUE)
 data <- read.csv('../data/ssmtlr_vimp.csv')
-data <- 0.8364 - data
+data <- 0.7819 - data
 
 v.age <- mean(data$vimp[1])
 v.plns <- mean(data$vimp[2])
@@ -32,11 +32,12 @@ ggplot(vimpdata, aes(x = reorder(variables, vimp, order = TRUE), y = vimp)) +
   geom_bar(stat="identity", fill="lightblue", colour="black", size = 0.3) + coord_flip() +
   geom_text(aes(label = vimps, 
                 vjust = 0.4, hjust = -0.3), size = 1.8, show.legend = FALSE) + 
-  ggtitle("E. CRC with CRs") +
+  ggtitle("A. CRC without CRs") +
   labs(x = "Variables", y = "Variable importance") + 
   ylim(0, 1) + 
   theme(plot.title = element_text(color="black", size=7, face="bold", hjust = 0.5)) + 
   theme(axis.text = element_text(size = 6, color="black", vjust=0.5, hjust=0.5)) +
   theme(axis.title = element_text(size = 7, color="black", face= "bold", vjust=0.5, hjust=0.5))
 dev.off()
+
 

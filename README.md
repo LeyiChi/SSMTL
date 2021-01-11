@@ -75,4 +75,59 @@ python 009-ssmtlr-nonlinear.py
 Rscript ./010-nonlinear-plot.R
 ```
 
-引用和错误
+### training and evaluation for survival analysis without CRs
+Go to the survival-analysis-without-CRs directory using 
+```
+cd survival-analysis-without-CRs/
+```
+
+1. Cox model:
+```
+Rscript ./001-cox.R
+```
+2. AFT model:
+```
+Rscript ./002-aft.R
+```
+3. Random survival forest:
+```
+Rscript ./003-rsf.R
+```
+4. GBM model:
+```
+Rscript ./004-gbm.R
+```
+5. DeepSurv model:
+```
+python 005-deepsurv.py
+```
+6. DeepHit model:
+```
+python 006-DeepHit.py
+```
+7. MTLR model:
+```
+python 007-MTLR.py
+```
+8. Logistic Hazard model
+```
+python 008-logistichazard.py
+```
+9. PMF model:
+```
+python 009-PMF.py
+```
+10. SSMTL model:
+```
+python 010-ssmtl.py
+```
+11. model performance compare:
+```
+Rscript ./011-model-compare.R
+```
+12. variable importance for SSMTL:
+```
+python 012-ssmtl-vimp.py
+Rscript ./013-vimp.R
+```
+
