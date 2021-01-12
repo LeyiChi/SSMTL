@@ -131,3 +131,7 @@ python 012-ssmtl-vimp.py
 Rscript ./013-vimp.R
 ```
 
+### results of effects of Prognostic Factors on the Survival Risk were under ./results.
+
+
+
